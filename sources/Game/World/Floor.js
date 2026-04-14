@@ -17,7 +17,6 @@ export class Floor
                 expanded: false,
             })
         }
-        this.geometry = this.game.resources.terrainModel.scene.children[0].geometry
         this.subdivision = this.game.terrain.subdivision
 
         this.setVisual()
@@ -44,33 +43,17 @@ export class Floor
 
         // Terrain data
         const terrainData = this.game.terrain.terrainNode(positionWorld.xz)
-        const slabHighColor = uniform(color('#ffcf8b'))
-        const slabLowColor = uniform(color('#a87762'))
-        const slabTextureFrequency = uniform(0.175)
-        const slabNoiseFrequency = uniform(0.03)
         const colorNode = Fn(() =>
         {
             const baseColor = this.game.terrain.colorNode(terrainData)
-            
-            const slabTerrain = terrainData.r
-            const slabNoiseUv = positionWorld.xz.mul(slabNoiseFrequency)
-            const slabNoise = texture(this.game.noises.perlin, slabNoiseUv).r
-            const slabsTexture = texture(this.game.resources.floorSlabsTexture, positionWorld.xz.mul(slabTextureFrequency)).r
-            const slabColor = mix(slabLowColor, slabHighColor, slabsTexture)
-            // return vec3(slabsTexture.mul(slabStrength))
-
-            const slab = slabTerrain.mul(slabNoise)
-            // return vec3(slab)
-            
-            const finalColor = mix(baseColor, slabColor, slab)
-            return finalColor
+            return baseColor
         })()
 
         // Material
         const material = new MeshDefaultMaterial({
             colorNode: colorNode,
             normalNode: vec3(0, 1, 0),
-            shadowNode: terrainData.g,
+            shadowNode: float(0),
             hasWater: false,
             hasLightBounce: false,
             wireframe: false
@@ -89,7 +72,6 @@ export class Floor
         // Mesh
         this.mesh = new THREE.Mesh(geometry, material)
         this.mesh.receiveShadow = true
-        // this.mesh.castShadow = true
         this.game.scene.add(this.mesh)
 
         // Resize
@@ -107,37 +89,15 @@ export class Floor
 
             this.mesh.geometry = geometry
         }, 2)
-
-        if(this.game.debug.active)
-        {
-            this.debugPanel.addBinding(slabTextureFrequency, 'value', { label: 'slabTextureFrequency', min: 0, max: 1, step: 0.001 })
-            this.debugPanel.addBinding(slabNoiseFrequency, 'value', { label: 'slabNoiseFrequency', min: 0, max: 0.1, step: 0.001 })
-            this.game.debug.addThreeColorBinding(this.debugPanel, slabHighColor.value, 'slabHighColor')
-            this.game.debug.addThreeColorBinding(this.debugPanel, slabLowColor.value, 'slabLowColor')
-        }
     }
 
     setPhysical()
     {
-        // Extract heights from geometry
-        const positionAttribute = this.geometry.attributes.position
-        const totalCount = positionAttribute.count
-        const rowsCount = Math.sqrt(totalCount)
-        const heights = new Float32Array(totalCount)
-        const halfExtent = this.game.terrain.size / 2
-
-        for(let i = 0; i < totalCount; i++)
-        {
-            const x = positionAttribute.array[i * 3 + 0]
-            const y = positionAttribute.array[i * 3 + 1]
-            const z = positionAttribute.array[i * 3 + 2]
-            const indexX = Math.round(((x / (halfExtent * 2)) + 0.5) * (rowsCount - 1))
-            const indexZ = Math.round(((z / (halfExtent * 2)) + 0.5) * (rowsCount - 1))
-            const index = indexZ + indexX * rowsCount
-
-            heights[index] = y
-        }
-
+        // Use procedural heightfield from track generator
+        const track = this.game.proceduralTrack
+        const res = track.heightfieldResolution
+        const heights = track.heights
+        
         const object = this.game.objects.add(
             null,
             {
@@ -145,7 +105,7 @@ export class Floor
                 friction: 0.2,
                 restitution: 0.15,
                 colliders: [
-                    { shape: 'heightfield', parameters: [ rowsCount - 1, rowsCount - 1, heights, { x: this.game.terrain.size, y: 1, z: this.game.terrain.size } ], category: 'floor' }
+                    { shape: 'heightfield', parameters: [ res - 1, res - 1, heights, { x: this.game.terrain.size, y: 1, z: this.game.terrain.size } ], category: 'floor' }
                 ]
             }
         )

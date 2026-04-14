@@ -29,6 +29,8 @@ import { Audio } from './Audio.js'
 import { RayCursor } from './RayCursor.js'
 import { Water } from './Water.js'
 import { Quality } from './Quality.js'
+import { ProceduralTrack } from './ProceduralTrack.js'
+import { Checkpoints } from './Checkpoints.js'
 import { color, uniform, vec2 } from 'three/tsl'
 
 export class Game
@@ -79,10 +81,13 @@ export class Game
 
         const cb = '?cb=1'
         this.resources = await this.resourcesLoader.load([
-            [ 'respawnsReferencesModel',    `respawns/respawnsReferences${compressedModelSuffix}.glb${cb}`, 'gltf' ],
             [ 'paletteTexture',             `palette.${compressedTextureExtension}${cb}`,                   compressedTextureFormat, (resource) => { resource.minFilter = THREE.NearestFilter; resource.magFilter = THREE.NearestFilter; resource.generateMipmaps = false; resource.colorSpace = THREE.SRGBColorSpace; } ],
         ])
-        this.respawns = new Respawns(import.meta.env.VITE_PLAYER_SPAWN || 'landing')
+        
+        // Generate procedural racetrack
+        this.proceduralTrack = new ProceduralTrack()
+
+        this.respawns = new Respawns('landing')
         this.view = new View()
         this.rendering.setPostprocessing()
         this.rendering.start()
@@ -110,15 +115,10 @@ export class Game
         // Load and init RAPIER
         const rapierPromise = import('@dimforge/rapier3d')
 
-        // Load only essential resources (vehicle, terrain, floor)
+        // Load only essential resources (vehicle)
         const resourcesPromise = this.resourcesLoader.load(
             [
                 [ 'vehicle',                               `vehicle/default${compressedModelSuffix}.glb${cb}`,                                   'gltf' ],
-                [ 'playgroundVisual',                      `playground/playgroundVisual${compressedModelSuffix}.glb${cb}`,                       'gltf' ],
-                [ 'playgroundPhysical',                    `playground/playgroundPhysical${compressedModelSuffix}.glb${cb}`,                     'gltf' ],
-                [ 'terrainTexture',                        `terrain/terrain.${compressedTextureExtension}${cb}`,                                 compressedTextureFormat, (resource) => { resource.flipY = false; } ],
-                [ 'terrainModel',                          `terrain/terrain${compressedModelSuffix}.glb${cb}`,                                   'gltf' ],
-                [ 'floorSlabsTexture',                     `floor/slabs.${compressedTextureExtension}`,                                     compressedTextureFormat, (resource) => { resource.wrapS = THREE.RepeatWrapping; resource.wrapT = THREE.RepeatWrapping; resource.minFilter = THREE.LinearFilter; resource.magFilter = THREE.LinearFilter; resource.generateMipmaps = false } ],
             ]
         )
 
@@ -132,6 +132,9 @@ export class Game
         this.physicalVehicle = new PhysicsVehicle()
         this.player = new Player()
         this.world.step(1)
+
+        // Checkpoints
+        this.checkpoints = new Checkpoints(this.proceduralTrack)
 
         // Start immediately (no intro)
         this.audio.init()

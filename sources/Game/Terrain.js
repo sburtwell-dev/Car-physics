@@ -20,7 +20,6 @@ export class Terrain
             })
         }
 
-        this.setGradient()
         this.setNodes()
 
         this.game.ticker.events.on('tick', () =>
@@ -29,60 +28,12 @@ export class Terrain
         }, 10)
     }
 
-    setGradient()
-    {
-        const height = 16
-
-        const canvas = document.createElement('canvas')
-        canvas.width = 1
-        canvas.height = height
-
-        this.gradientTexture = new THREE.Texture(canvas)
-        this.gradientTexture.colorSpace = THREE.SRGBColorSpace
-
-        const context = canvas.getContext('2d')
-
-        this.colors = [
-            { stop: 0.1, value: '#ffa94e' },
-            { stop: 0.3, value: '#5bc2b9' },
-            { stop: 0.9, value: '#13375f' },
-        ]
-
-        const update = () =>
-        {
-            const gradient = context.createLinearGradient(0, 0, 0, height)
-            for(const color of this.colors)
-                gradient.addColorStop(color.stop, color.value)
-
-            context.fillStyle = gradient
-            context.fillRect(0, 0, 1, height)
-            this.gradientTexture.needsUpdate = true
-        }
-
-        update()
-
-        // // Debug
-        // canvas.style.position = 'fixed'
-        // canvas.style.zIndex = 999
-        // canvas.style.top = 0
-        // canvas.style.left = 0
-        // canvas.style.width = '128px'
-        // canvas.style.height = `256px`
-        // document.body.append(canvas)
-        
-        if(this.game.debug.active)
-        {
-            for(const color of this.colors)
-            {
-                this.debugPanel.addBinding(color, 'stop', { min: 0, max: 1, step: 0.001 }).on('change', update)
-                this.debugPanel.addBinding(color, 'value', { view: 'color' }).on('change', update)
-            }
-        }
-    }
-
     setNodes()
     {
-        this.grassColorUniform = uniform(color('#b8b62e'))
+        this.grassColorUniform = uniform(color('#4a8c2a'))
+        this.trackColorUniform = uniform(color('#3a3a3a'))
+        this.curbColorUniform = uniform(color('#cc2222'))
+        this.wallColorUniform = uniform(color('#888888'))
         this.tracksDelta = uniform(vec2(0))
 
         const worldPositionToUvNode = Fn(([position]) =>
@@ -93,7 +44,7 @@ export class Terrain
         this.terrainNode = Fn(([position]) =>
         {
             const textureUv = worldPositionToUvNode(position)
-            const data = texture(this.game.resources.terrainTexture, textureUv)
+            const data = texture(this.game.proceduralTrack.texture, textureUv)
 
             // Wheel tracks
             const groundDataColor = texture(
@@ -107,18 +58,25 @@ export class Terrain
         
         this.colorNode = Fn(([terrainData]) =>
         {
-            // Dirt and water
-            const baseColor = texture(this.gradientTexture, vec2(0, terrainData.b.oneMinus()))
+            // Track surface (R channel high = on track)
+            const trackStrength = terrainData.r
 
-            // Grass
-            baseColor.assign(mix(baseColor, this.grassColorUniform, terrainData.g))
+            // Grass (G channel)
+            const grassStrength = terrainData.g
 
-            return baseColor.rgb
+            // Start with track color, blend wall color for low R values
+            const baseColor = mix(this.wallColorUniform, this.trackColorUniform, smoothstep(0.3, 0.8, trackStrength))
+
+            // Mix grass
+            const finalColor = mix(baseColor, this.grassColorUniform, grassStrength)
+
+            return finalColor.rgb
         })
 
         if(this.game.debug.active)
         {
             this.game.debug.addThreeColorBinding(this.debugPanel, this.grassColorUniform.value, 'grassColor')
+            this.game.debug.addThreeColorBinding(this.debugPanel, this.trackColorUniform.value, 'trackColor')
         }
     }
     

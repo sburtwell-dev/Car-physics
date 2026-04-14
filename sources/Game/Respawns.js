@@ -13,28 +13,8 @@ export class Respawns
 
     setItems()
     {
-        this.items = new Map()
-
-        for(const child of this.game.resources.respawnsReferencesModel.scene.children)
-        {
-            child.rotation.reorder('YXZ')
-
-            let name = child.name.replace(/^respawn(.+)$/i, '$1')
-
-            name = name.charAt(0).toLowerCase() + name.slice(1)
-
-            const item = {
-                name: name,
-                position: new THREE.Vector3(
-                    child.position.x,
-                    4,
-                    child.position.z
-                ),
-                rotation: child.rotation.y
-            }
-
-            this.items.set(name, item)
-        }
+        // Use procedural track respawn points
+        this.items = this.game.proceduralTrack.respawnItems
     }
 
     getByName(name)
