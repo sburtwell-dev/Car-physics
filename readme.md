@@ -1,7 +1,5 @@
 # Folio 2025
 
-![image info](./static/social/share-image.png)
-
 ## Setup
 
 Create `.env` file based on `.env.example`
