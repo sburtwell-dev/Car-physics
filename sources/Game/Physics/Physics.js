@@ -30,12 +30,14 @@ export class Physics
         this.groups = {
             all: 0b0000000000000001,
             object:  0b0000000000000010,
-            bumper:  0b0000000000000100
+            bumper:  0b0000000000000100,
+            vehicle: 0b0000000000001000
         }
         this.categories = {
             floor: (this.groups.all) << 16 | (this.groups.all),
             object: (this.groups.all | this.groups.object) << 16 | (this.groups.all | this.groups.bumper),
             bumper: (this.groups.bumper) << 16 | this.groups.object,
+            vehicle: (this.groups.all | this.groups.vehicle) << 16 | (this.groups.all | this.groups.vehicle | this.groups.bumper),
         }
         this.frictionRules = {
             average: this.game.RAPIER.CoefficientCombineRule.Average,

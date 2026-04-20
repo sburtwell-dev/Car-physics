@@ -23,6 +23,7 @@ import { Wind } from './Wind.js'
 import { Terrain } from './Terrain.js'
 import { YearCycles } from './Cycles/YearCycles.js'
 import { PhysicsVehicle } from './Physics/PhysicsVehicle.js'
+import { VehicleManager } from './VehicleManager.js'
 import { PhysicsWireframe } from './Physics/PhysicsWireframe.js'
 import { Respawns } from './Respawns.js'
 import { Audio } from './Audio.js'
@@ -135,6 +136,13 @@ export class Game
 
         // Checkpoints
         this.checkpoints = new Checkpoints(this.proceduralTrack)
+
+        // Spawn AI vehicles
+        this.vehicleManager = new VehicleManager()
+        const aiSpawn = this.player.position.clone()
+        aiSpawn.x += 5
+        aiSpawn.z += 5
+        this.vehicleManager.spawnAIVehicle(aiSpawn)
 
         // Start immediately (no intro)
         this.audio.init()

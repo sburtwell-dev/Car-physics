@@ -5,11 +5,13 @@ import { lerp, remap, remapClamp, smallestAngle } from '../utilities/maths.js'
 
 export class PhysicsVehicle
 {
-    constructor()
+    constructor(options = {})
     {
         this.game = Game.getInstance()
 
         this.events = new Events()
+        this.driver = options.driver || null
+        this.isLocal = options.isLocal !== false
 
         this.steeringAmplitude = 0.5
         this.engineForceAmplitude = 300
@@ -23,7 +25,7 @@ export class PhysicsVehicle
         this.sideward = new THREE.Vector3(0, 0, 1)
         this.upward = new THREE.Vector3(0, 1, 0)
         this.forward = new THREE.Vector3(1, 0, 0)
-        this.position = new THREE.Vector3(0, 4, 0)
+        this.position = options.position ? options.position.clone() : new THREE.Vector3(0, 4, 0)
         this.quaternion = new THREE.Quaternion()
         this.velocity = new THREE.Vector3()
         this.direction = this.forward.clone()
@@ -40,7 +42,7 @@ export class PhysicsVehicle
         }
 
         // Debug
-        if(this.game.debug.active)
+        if(this.isLocal && this.game.debug.active)
         {
             this.debugPanel = this.game.physics.debugPanel.addFolder({
                 title: 'Vehicle',
@@ -185,7 +187,7 @@ export class PhysicsVehicle
         this.wheels.updateSettings()
 
         // Debug
-        if(this.game.debug.active)
+        if(this.isLocal && this.game.debug.active)
         {
             this.debugPanel.addBlade({ view: 'separator' })
             this.debugPanel.addBinding(this.wheels.settings, 'offset', { min: -1, max: 2, step: 0.01 }).on('change', this.wheels.updateSettings)
@@ -437,7 +439,7 @@ export class PhysicsVehicle
             }
         }
 
-        if(this.game.debug.active)
+        if(this.isLocal && this.game.debug.active)
         {
             this.debugPanel.addBinding(this.flip, 'force', { label: 'flipForce', min: 0, max: 10, step: 0.01 })
         }
@@ -456,22 +458,24 @@ export class PhysicsVehicle
 
     updatePrePhysics()
     {
+        const driver = this.driver || this.game.player
+
         // Engine force
-        const topSpeed = lerp(this.topSpeed, this.topSpeedBoost, this.game.player.boosting)
+        const topSpeed = lerp(this.topSpeed, this.topSpeedBoost, driver.boosting)
         const overflowSpeed = Math.max(0, this.speed - topSpeed)
-        let engineForce = (this.game.player.accelerating * (1 + this.game.player.boosting * this.boostMultiplier)) * this.engineForceAmplitude / (1 + overflowSpeed) * this.game.ticker.deltaScaled
+        let engineForce = (driver.accelerating * (1 + driver.boosting * this.boostMultiplier)) * this.engineForceAmplitude / (1 + overflowSpeed) * this.game.ticker.deltaScaled
 
         // Brake
-        let brake = this.game.player.braking
+        let brake = driver.braking
 
-        if(!this.game.player.braking && Math.abs(this.game.player.accelerating) < 0.1)
+        if(!driver.braking && Math.abs(driver.accelerating) < 0.1)
             brake = this.idleBrake
     
         if(
             this.speed > 0.5 &&
             (
-                (this.game.player.accelerating > 0 && !this.goingForward) ||
-                (this.game.player.accelerating < 0 && this.goingForward)
+                (driver.accelerating > 0 && !this.goingForward) ||
+                (driver.accelerating < 0 && this.goingForward)
             )
         )
         {
@@ -482,7 +486,7 @@ export class PhysicsVehicle
         brake *= this.brakeAmplitude * this.game.ticker.deltaScaled
 
         // Steer
-        const steer = this.game.player.steering * this.steeringAmplitude
+        const steer = driver.steering * this.steeringAmplitude
 
         // Update wheels
         this.controller.setWheelSteering(0, steer)
@@ -492,8 +496,8 @@ export class PhysicsVehicle
         {
             this.controller.setWheelBrake(i, brake)
             this.controller.setWheelEngineForce(i, engineForce)
-            this.controller.setWheelSuspensionRestLength(i, this.suspensionsHeights[this.game.player.suspensions[i]])
-            this.controller.setWheelSuspensionStiffness(i, this.suspensionsStiffness[this.game.player.suspensions[i]])
+            this.controller.setWheelSuspensionRestLength(i, this.suspensionsHeights[driver.suspensions[i]])
+            this.controller.setWheelSuspensionStiffness(i, this.suspensionsStiffness[driver.suspensions[i]])
 
             // Ice slip
             const groundObject = this.controller.wheelGroundObject(i)
@@ -534,7 +538,8 @@ export class PhysicsVehicle
         this.yRotation = new THREE.Euler().setFromQuaternion(this.quaternion, 'YXZ').y
         this.zRotation = new THREE.Euler().setFromQuaternion(this.quaternion, 'ZYX').z
 
-        if(Math.abs(this.game.player.accelerating) > 0.5)
+        const driver = this.driver || this.game.player
+        if(Math.abs(driver.accelerating) > 0.5)
             this.stuck.accumulate(this.velocity.length(), this.game.ticker.deltaScaled)
 
         let inContactCount = 0

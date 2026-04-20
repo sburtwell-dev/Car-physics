@@ -10,16 +10,20 @@ import { MeshDefaultMaterial } from '../Materials/MeshDefaultMaterial.js'
 
 export class VisualVehicle
 {
-    constructor(model)
+    constructor(model, options = {})
     {
         this.game = Game.getInstance()
         
         this.model = model
+        this.physicsVehicle = options.physicsVehicle || null
+        this.driver = options.driver || null
+        this.isLocal = options.isLocal !== false
 
         this.setParts()
         this.setMainGroundTrack()
         this.setWheels()
-        this.setBlinkers()
+        if(this.isLocal)
+            this.setBlinkers()
         this.setBackLights()
         this.setAntenna()
         this.setBoostTrails()
@@ -238,7 +242,7 @@ export class VisualVehicle
         }
         
         // From achievements
-        if(this.game.achievements)
+        if(this.isLocal && this.game.achievements)
         {
             this.paints.changeTo(this.game.achievements.rewards.current.name)
 
@@ -365,7 +369,9 @@ export class VisualVehicle
         this.antenna.target = new THREE.Vector3(0, 2, 0)
         this.antenna.target = new THREE.Vector3(0, 2, 0)
         this.antenna.object = this.parts.antenna
-        this.antenna.head = this.game.resources.vehicle.scene.getObjectByName('antennaHead')
+        this.antenna.head = this.model.getObjectByName('antennaHead') || this.parts.chassis.getObjectByName('antennaHead')
+        if(!this.antenna.head)
+            return
         this.antenna.headAxle = this.antenna.head.children[0]
         this.antenna.headReference = this.antenna.object.getObjectByName('antennaHeadReference')
 
@@ -420,14 +426,15 @@ export class VisualVehicle
 
     update()
     {
-        const physicalVehicle = this.game.physicalVehicle
+        const physicalVehicle = this.physicsVehicle || this.game.physicalVehicle
+        const driver = this.driver || this.game.player
         
         // Chassis
         this.parts.chassis.position.copy(physicalVehicle.position)
         this.parts.chassis.quaternion.copy(physicalVehicle.quaternion)
         
         // Wheels
-        this.wheels.steering += ((this.game.player.steering * physicalVehicle.steeringAmplitude) - this.wheels.steering) * this.game.ticker.deltaScaled * 16
+        this.wheels.steering += ((driver.steering * physicalVehicle.steeringAmplitude) - this.wheels.steering) * this.game.ticker.deltaScaled * 16
 
         const wheelsRotation = (physicalVehicle.forwardSpeed) / physicalVehicle.wheels.settings.radius * 0.006
 
@@ -438,7 +445,7 @@ export class VisualVehicle
 
             // visualWheel.container.position.copy(physicalWheel.basePosition)
 
-            if(!this.game.inputs.actions.get('brake').active || this.game.inputs.actions.get('forward').active || this.game.inputs.actions.get('backward').active)
+            if(!driver.braking || Math.abs(driver.accelerating) > 0)
             {
                 if(i === 0 || i === 2)
                     visualWheel.cylinder.rotation.z += wheelsRotation
@@ -488,7 +495,7 @@ export class VisualVehicle
         }
 
         // Stop/back lights
-        if(this.game.player.braking)
+        if(driver.braking)
         {
             if(this.parts.stopLights)
                 this.parts.stopLights.visible = true
@@ -507,7 +514,7 @@ export class VisualVehicle
             if(this.parts.backLights)
             {
                 // Backward
-                if(this.game.player.accelerating < 0)
+                if(driver.accelerating < 0)
                 {
                     this.parts.backLights.visible = true
                     this.parts.backLights.material = this.backLights.material
@@ -521,14 +528,14 @@ export class VisualVehicle
         }
 
         // Boost trails
-        const trailAlpha = physicalVehicle.goingForward && this.game.player.boosting && this.game.player.accelerating > 0 ? 1 : 0
+        const trailAlpha = physicalVehicle.goingForward && driver.boosting && driver.accelerating > 0 ? 1 : 0
         this.boostTrails.leftReference.getWorldPosition(this.boostTrails.left.position)
         this.boostTrails.left.alpha = trailAlpha
         this.boostTrails.rightReference.getWorldPosition(this.boostTrails.right.position)
         this.boostTrails.right.alpha = trailAlpha
 
         // Boost animation
-        this.boostAnimation.mix += (this.game.player.boosting ? 1 : - 1) * this.game.ticker.deltaScaled * this.boostAnimation.speed
+        this.boostAnimation.mix += (driver.boosting ? 1 : - 1) * this.game.ticker.deltaScaled * this.boostAnimation.speed
         this.boostAnimation.mix = clamp(this.boostAnimation.mix, 0, 1)
         // this.boostAnimation.mixUniform.value = remapClamp(this.boostAnimation.mix, 0, 0.2, 0, 1)
         this.boostAnimation.mixUniform.value = 1 - Math.pow(1 - this.boostAnimation.mix, 7)
