@@ -15,42 +15,14 @@ export class AIDriver
         this.suspensions = ['low', 'low', 'low', 'low']
 
         this.track = this.game.proceduralTrack
-        this.trackT = 0           // Current parameter on spline [0..1]
-        this.lookahead = 15        // How far ahead on track to aim (meters)
-        this.targetSpeed = 4       // Desired cruising speed
-        this.brakeDistance = 8     // Start braking if sharp turn within this distance
-
-        // Find initial closest point on track
-        this.trackT = this.findClosestT(this.physicsVehicle.position)
+        this.checkpoints = this.track.checkpoints
+        this.currentCheckpoint = 1  // Start targeting checkpoint 1 (spawned at 0)
+        this.checkpointRadius = this.track.trackHalfWidth + 2
 
         this.game.ticker.events.on('tick', () =>
         {
             this.update()
         }, 1)
-    }
-
-    findClosestT(position)
-    {
-        const samples = 200
-        let bestT = 0
-        let bestDist = Infinity
-
-        for(let i = 0; i < samples; i++)
-        {
-            const t = i / samples
-            const point = this.track.curve.getPointAt(t)
-            const dx = position.x - point.x
-            const dz = position.z - point.z
-            const dist = dx * dx + dz * dz
-
-            if(dist < bestDist)
-            {
-                bestDist = dist
-                bestT = t
-            }
-        }
-
-        return bestT
     }
 
     update()
@@ -59,17 +31,23 @@ export class AIDriver
         const forward = this.physicsVehicle.forward
         const speed = this.physicsVehicle.xzSpeed || 0
 
-        // Advance trackT to stay near the car's actual position
-        this.trackT = this.findClosestT(pos)
+        // Current target checkpoint
+        const target = this.checkpoints[this.currentCheckpoint]
 
-        // Get a target point ahead on the spline
-        const lookaheadT = this.lookahead / this.track.trackLength
-        let targetT = (this.trackT + lookaheadT) % 1
-        const target = this.track.curve.getPointAt(targetT)
+        // Check if we reached the current checkpoint
+        const dxCheck = pos.x - target.position.x
+        const dzCheck = pos.z - target.position.z
+        const distToCheckpoint = Math.sqrt(dxCheck * dxCheck + dzCheck * dzCheck)
 
-        // Direction to target in world XZ
-        const toTargetX = target.x - pos.x
-        const toTargetZ = target.z - pos.z
+        if(distToCheckpoint < this.checkpointRadius)
+        {
+            // Advance to next checkpoint (wrap around)
+            this.currentCheckpoint = (this.currentCheckpoint + 1) % this.checkpoints.length
+        }
+
+        // Steer toward target checkpoint
+        const toTargetX = target.position.x - pos.x
+        const toTargetZ = target.position.z - pos.z
         const toTargetLen = Math.sqrt(toTargetX * toTargetX + toTargetZ * toTargetZ)
 
         if(toTargetLen < 0.01)
@@ -79,40 +57,64 @@ export class AIDriver
             return
         }
 
-        // Normalize
         const dirX = toTargetX / toTargetLen
         const dirZ = toTargetZ / toTargetLen
 
-        // Cross product (forward × toTarget) gives signed turn direction
-        // forward is (forward.x, 0, forward.z) in world space
+        // Cross product for signed turn direction
         const cross = forward.x * dirZ - forward.z * dirX
 
-        // Dot product for how aligned we are
+        // Dot product for alignment
         const dot = forward.x * dirX + forward.z * dirZ
 
-        // Steering: proportional to cross product, clamped
+        // Steering: proportional to cross, clamped
         this.steering = Math.max(-1, Math.min(1, cross * 3))
 
-        // Check for upcoming sharp turn (lookahead further)
-        const farLookaheadT = (this.trackT + lookaheadT * 2.5) % 1
-        const tangentNow = this.track.curve.getTangentAt(this.trackT)
-        const tangentFar = this.track.curve.getTangentAt(farLookaheadT)
-        const turnSharpness = 1 - (tangentNow.x * tangentFar.x + tangentNow.z * tangentFar.z)
+        // Look ahead to next checkpoint to anticipate sharp turns
+        const nextCheckpointIdx = (this.currentCheckpoint + 1) % this.checkpoints.length
+        const nextTarget = this.checkpoints[nextCheckpointIdx]
+        const toNextX = nextTarget.position.x - target.position.x
+        const toNextZ = nextTarget.position.z - target.position.z
+        const toNextLen = Math.sqrt(toNextX * toNextX + toNextZ * toNextZ)
+
+        let turnSharpness = 0
+        if(toNextLen > 0.01)
+        {
+            const nextDirX = toNextX / toNextLen
+            const nextDirZ = toNextZ / toNextLen
+            turnSharpness = 1 - (dirX * nextDirX + dirZ * nextDirZ)
+        }
 
         // Throttle and braking
-        if(dot < 0.2)
+        if(dot < 0)
         {
-            // Facing wrong way — brake and turn
-            this.accelerating = 0.2
-            this.braking = 0.3
+            // Facing wrong way — brake hard and turn
+            this.accelerating = 0.1
+            this.braking = 0.5
             this.boosting = 0
         }
-        else if(turnSharpness > 0.3 && speed > 2)
+        else if(dot < 0.3)
         {
-            // Sharp turn ahead — slow down
-            this.accelerating = 0.2
-            this.braking = 0.2
+            // Almost perpendicular — light throttle, no brake
+            this.accelerating = 0.3
+            this.braking = 0
             this.boosting = 0
+        }
+        else if(turnSharpness > 0.4 && speed > 2 && distToCheckpoint < 20)
+        {
+            // Sharp turn coming up — slow down
+            this.accelerating = 0.3
+            this.braking = 0.15
+            this.boosting = 0
+        }
+        else
+        {
+            // Straight or gentle curve
+            this.accelerating = 0.8
+            this.braking = 0
+            this.boosting = dot > 0.9 && turnSharpness < 0.15 && speed > 3 ? 1 : 0
+        }
+    }
+}
         }
         else
         {

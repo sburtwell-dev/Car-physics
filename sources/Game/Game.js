@@ -140,8 +140,11 @@ export class Game
 
         // Spawn AI vehicles
         this.vehicleManager = new VehicleManager()
-        const aiTrackPoint = this.proceduralTrack.curve.getPointAt(0.5)
-        aiTrackPoint.y = 2
+        const startCheckpoint = this.proceduralTrack.checkpoints[0]
+        const aiSpawn = startCheckpoint.position.clone()
+        aiSpawn.y = 2
+        aiSpawn.x += startCheckpoint.normal.x * 3  // Offset to side so not on top of player
+        aiSpawn.z += startCheckpoint.normal.z * 3
         this.vehicleManager.spawnAIVehicle(aiTrackPoint)
 
         // Start immediately (no intro)
