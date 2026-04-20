@@ -12,11 +12,11 @@ export class VehicleManager
         this.vehicles = []
     }
 
-    spawnAIVehicle(position)
+    spawnAIVehicle(position, rotation = 0)
     {
         try
         {
-            console.log('[VehicleManager] Spawning AI vehicle at', position.x, position.y, position.z)
+            console.log('[VehicleManager] Spawning AI vehicle at', position.x, position.y, position.z, 'rotation:', rotation)
 
             // Create physics first with a placeholder driver
             const placeholderDriver = { accelerating: 0, steering: 0, boosting: 0, braking: 0, suspensions: ['low', 'low', 'low', 'low'] }
@@ -26,6 +26,9 @@ export class VehicleManager
                 position: position,
                 isLocal: false
             })
+
+            // Orient the vehicle along the track
+            physicsVehicle.moveTo(position, rotation)
 
             // Now create the real AI driver with access to physics vehicle
             const driver = new AIDriver(physicsVehicle)

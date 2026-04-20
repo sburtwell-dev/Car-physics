@@ -145,7 +145,8 @@ export class Game
         aiSpawn.y = 2
         aiSpawn.x += startCheckpoint.normal.x * 3  // Offset to side so not on top of player
         aiSpawn.z += startCheckpoint.normal.z * 3
-        this.vehicleManager.spawnAIVehicle(aiSpawn)
+        const aiRotation = Math.atan2(-startCheckpoint.tangent.x, -startCheckpoint.tangent.z)
+        this.vehicleManager.spawnAIVehicle(aiSpawn, aiRotation)
 
         // Start immediately (no intro)
         this.audio.init()

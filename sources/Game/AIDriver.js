@@ -61,13 +61,25 @@ export class AIDriver
         const dirZ = toTargetZ / toTargetLen
 
         // Cross product for signed turn direction
+        // Player convention: positive steering = left, negative = right
+        // forward cross toTarget: positive when target is to the left
         const cross = forward.x * dirZ - forward.z * dirX
 
         // Dot product for alignment
         const dot = forward.x * dirX + forward.z * dirZ
 
         // Steering: proportional to cross, clamped
-        this.steering = Math.max(-1, Math.min(1, cross * 3))
+        // Negate because the vehicle's local +X is forward, and wheel steering is inverted
+        this.steering = Math.max(-1, Math.min(1, -cross * 3))
+
+        // Debug logging (first 60 frames only)
+        if(this.debugFrames === undefined) this.debugFrames = 0
+        if(this.debugFrames < 60)
+        {
+            this.debugFrames++
+            if(this.debugFrames % 20 === 0)
+                console.log('[AI] cp:', this.currentCheckpoint, 'dist:', distToCheckpoint.toFixed(1), 'dot:', dot.toFixed(2), 'cross:', cross.toFixed(2), 'steer:', this.steering.toFixed(2), 'pos:', pos.x.toFixed(1), pos.z.toFixed(1), 'fwd:', forward.x.toFixed(2), forward.z.toFixed(2))
+        }
 
         // Look ahead to next checkpoint to anticipate sharp turns
         const nextCheckpointIdx = (this.currentCheckpoint + 1) % this.checkpoints.length
