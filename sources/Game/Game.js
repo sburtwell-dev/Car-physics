@@ -140,10 +140,9 @@ export class Game
 
         // Spawn AI vehicles
         this.vehicleManager = new VehicleManager()
-        const aiSpawn = this.player.position.clone()
-        aiSpawn.x += 5
-        aiSpawn.z += 5
-        this.vehicleManager.spawnAIVehicle(aiSpawn)
+        const aiTrackPoint = this.proceduralTrack.curve.getPointAt(0.5)
+        aiTrackPoint.y = 2
+        this.vehicleManager.spawnAIVehicle(aiTrackPoint)
 
         // Start immediately (no intro)
         this.audio.init()

@@ -18,13 +18,18 @@ export class VehicleManager
         {
             console.log('[VehicleManager] Spawning AI vehicle at', position.x, position.y, position.z)
 
-            const driver = new AIDriver()
+            // Create physics first with a placeholder driver
+            const placeholderDriver = { accelerating: 0, steering: 0, boosting: 0, braking: 0, suspensions: ['low', 'low', 'low', 'low'] }
 
             const physicsVehicle = new PhysicsVehicle({
-                driver: driver,
+                driver: placeholderDriver,
                 position: position,
                 isLocal: false
             })
+
+            // Now create the real AI driver with access to physics vehicle
+            const driver = new AIDriver(physicsVehicle)
+            physicsVehicle.driver = driver
 
             console.log('[VehicleManager] PhysicsVehicle created, chassis body:', physicsVehicle.chassis.physical.body.translation())
 
