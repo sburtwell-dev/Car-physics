@@ -14,32 +14,47 @@ export class VehicleManager
 
     spawnAIVehicle(position)
     {
-        const driver = new AIDriver()
+        try
+        {
+            console.log('[VehicleManager] Spawning AI vehicle at', position.x, position.y, position.z)
 
-        const physicsVehicle = new PhysicsVehicle({
-            driver: driver,
-            position: position,
-            isLocal: false
-        })
+            const driver = new AIDriver()
 
-        const model = this.game.resources.vehicle.scene.clone(true)
-        const visualVehicle = new VisualVehicle(model, {
-            physicsVehicle: physicsVehicle,
-            driver: driver,
-            isLocal: false
-        })
+            const physicsVehicle = new PhysicsVehicle({
+                driver: driver,
+                position: position,
+                isLocal: false
+            })
 
-        // Set a different paint for AI vehicles
-        visualVehicle.paints.changeTo('orange')
+            console.log('[VehicleManager] PhysicsVehicle created, chassis body:', physicsVehicle.chassis.physical.body.translation())
 
-        const vehicle = {
-            driver,
-            physicsVehicle,
-            visualVehicle
+            const model = this.game.vehicleModelTemplate.clone(true)
+            console.log('[VehicleManager] Cloned model children:', model.children.length)
+
+            const visualVehicle = new VisualVehicle(model, {
+                physicsVehicle: physicsVehicle,
+                driver: driver,
+                isLocal: false
+            })
+
+            console.log('[VehicleManager] VisualVehicle created, chassis part:', !!visualVehicle.parts.chassis)
+
+            // Set a different paint for AI vehicles
+            visualVehicle.paints.changeTo('orange')
+
+            const vehicle = {
+                driver,
+                physicsVehicle,
+                visualVehicle
+            }
+
+            this.vehicles.push(vehicle)
+
+            return vehicle
         }
-
-        this.vehicles.push(vehicle)
-
-        return vehicle
+        catch(error)
+        {
+            console.error('[VehicleManager] Failed to spawn AI vehicle:', error)
+        }
     }
 }

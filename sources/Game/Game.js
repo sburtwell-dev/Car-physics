@@ -132,6 +132,7 @@ export class Game
         this.wireframe = new PhysicsWireframe()
         this.physicalVehicle = new PhysicsVehicle()
         this.player = new Player()
+        this.vehicleModelTemplate = this.resources.vehicle.scene.clone(true)
         this.world.step(1)
 
         // Checkpoints

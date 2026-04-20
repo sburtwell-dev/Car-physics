@@ -124,30 +124,8 @@ export class ProceduralTrack
 
                 let height = 0
 
-                if(dist < this.trackHalfWidth)
-                {
-                    // Track surface - flat
-                    height = 0
-                }
-                else if(dist < this.trackHalfWidth + this.curbWidth)
-                {
-                    // Curb - slightly raised with bumps
-                    const curbT = (dist - this.trackHalfWidth) / this.curbWidth
-                    height = 0.08 * Math.sin(curbT * Math.PI)
-                }
-                else if(dist < this.trackHalfWidth + this.curbWidth + this.wallWidth)
-                {
-                    // Wall/barrier
-                    const wallT = (dist - this.trackHalfWidth - this.curbWidth) / this.wallWidth
-                    height = this.wallHeight * (1 - wallT * wallT)
-                }
-                else
-                {
-                    // Grass - gentle undulation
-                    const grassSeed1 = Math.sin(worldX * 0.05) * Math.cos(worldZ * 0.07) * 0.3
-                    const grassSeed2 = Math.sin(worldX * 0.13 + 1.7) * Math.cos(worldZ * 0.11 + 0.5) * 0.15
-                    height = -0.1 + grassSeed1 + grassSeed2
-                }
+                // Track surface and everything else - flat
+                // (No walls, curbs, or grass undulations in physics)
 
                 // RAPIER heightfield: row-major with rows along X, columns along Z
                 const index = iz * res + ix
