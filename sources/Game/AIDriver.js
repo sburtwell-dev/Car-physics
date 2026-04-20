@@ -115,13 +115,3 @@ export class AIDriver
         }
     }
 }
-        }
-        else
-        {
-            // Straight or gentle curve — full throttle
-            this.accelerating = 0.7
-            this.braking = 0
-            this.boosting = speed > this.targetSpeed * 0.8 && turnSharpness < 0.1 ? 1 : 0
-        }
-    }
-}
